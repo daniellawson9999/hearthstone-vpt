@@ -32,7 +32,7 @@ class ImgPreprocessing(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, img):
+    def forward(self, img, **kwargs):
         x = img.to(dtype=th.float32)
         return x
 
@@ -66,7 +66,9 @@ class ImgObsProcess(nn.Module):
             layer_type="linear",
             **dense_init_norm_kwargs,
         )
-
+        
+    def forward(self, img):
+        return self.linear(self.cnn(img))
 
 class HearthstonePolicy(nn.Module):
     """
@@ -175,8 +177,9 @@ class HearthstonePolicy(nn.Module):
     def forward(self, ob, state_in, context):
         first = context["first"]
 
-        x = self.img_preprocess(ob["img"])
-        x = ob
+        #x = self.img_preprocess(ob["img"])
+        x = self.img_preprocess(ob)
+        #x = ob
         x = self.img_process(x)
 
         if self.diff_obs_process:
@@ -209,7 +212,7 @@ class PolicyHead(nn.Module):
         super().__init__()
 
         self.translation_layer = nn.Linear(input_dim, 2)
-        self.click_logits_layer = nn.Linear(input_dim, 3)
+        self.click_logits_layer = nn.Linear(input_dim, 4)
 
     def reset_parameters(self):
             init.orthogonal_(self.translation_layer.weight, gain=0.01)
@@ -222,7 +225,7 @@ class PolicyHead(nn.Module):
     
     def forward(self, input_data: th.Tensor, target_actions = None):
         # Compute click related actions
-        click_logits = self.logits_layer(input_data)
+        click_logits = self.click_logits_layer(input_data)
         click_dists = Categorical(logits=click_logits)
 
         logp_actions = None
@@ -246,11 +249,9 @@ class PolicyHead(nn.Module):
     
 
 class HearthstoneAgentPolicy(nn.Module):
-    def __init__(self, action_space, policy_kwargs, pi_head_kwargs):
+    def __init__(self, policy_kwargs, pi_head_kwargs):
         super().__init__()
         self.net = HearthstonePolicy(**policy_kwargs)
-
-        self.action_space = action_space
 
         #self.value_head = self.make_value_head(self.net.output_latent_size())
         #self.pi_head = self.make_action_head(self.net.output_latent_size(), **pi_head_kwargs)
@@ -388,12 +389,10 @@ class InverseActionNet(HearthstonePolicy):
 class InverseActionPolicy(nn.Module):
     def __init__(
         self,
-        action_space,
         pi_head_kwargs=None,
         idm_net_kwargs=None,
     ):
         super().__init__()
-        self.action_space = action_space
 
         self.net = InverseActionNet(**idm_net_kwargs)
 

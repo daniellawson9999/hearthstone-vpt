@@ -101,7 +101,8 @@ def main(args):
     any_window = args.any_window
 
     window_handle = FindWindow(None, "Hearthstone")
-    win32gui.SetForegroundWindow(window_handle)
+    if not any_window:
+        win32gui.SetForegroundWindow(window_handle)
 
     listener = mouse.Listener(
         on_move=on_move,
@@ -177,15 +178,15 @@ def main(args):
                         event_type = event[0]
                         event_time = event[1]
                         if event_time < screenshot_time:
+                            next_event_index = i + 1
                             if event_type == EventType.move:
                                 last_x = event[2][0]
                                 last_y = event[2][1]
                             elif event_type == EventType.press:
                                 has_pressed = has_pressed or 1
                             elif event_type == EventType.release:
-                                has_released == has_released or 1
+                                has_released = has_released or 1
                         else:
-                            next_event_index = i
                             break
                     if prev_x_y is not None:
                         x_diff = last_x - prev_x_y[0]
@@ -194,18 +195,22 @@ def main(args):
                         x_diff = 0
                         y_diff = 0
                     prev_x_y = [last_x, last_y]
+                    press_and_release = 0
                     if has_pressed and has_released:
                         has_pressed = 0
                         has_released = 0
-                    action = [x_diff, y_diff, has_pressed, has_released]
+                        press_and_release = 1
+                    nothing = int(not (has_pressed or has_released or press_and_release))
+                    action = [x_diff / 1920, y_diff / 1080, has_pressed, has_released, press_and_release, nothing]
                 else:
-                    action = [0,0,0,0]
+                    action = [0,0,  0,0,0,  1]
                 #trajectory.append([screenshot, action])
-                if not args.remove_nulls or (args.remove_nulls and sum(action) != 0):
+                action = np.array([action], dtype=np.float32)
+                if not args.remove_nulls or (args.remove_nulls and np.abs(action).sum() != 0):
                     with NpyAppendArray(state_file) as npaa:
                         npaa.append(screenshot)
                     with NpyAppendArray(actions_file) as npaa:
-                        npaa.append(np.array([action]))
+                        npaa.append(action)
                     print("Logged to trajectory with action", action)
                 last_screenshot_len += 1
     except KeyboardInterrupt:
