@@ -96,6 +96,7 @@ def main(args):
         os.mkdir(data_file_prefix)
     state_file = os.path.join(data_file_prefix, 'states.npy')
     actions_file = os.path.join(data_file_prefix, 'actions.npy')
+    starts_file = os.path.join(data_file_prefix, 'starts.npy')
 
     global any_window
     any_window = args.any_window
@@ -140,6 +141,7 @@ def main(args):
     next_event_index = 0
     prev_x_y = None
     trajectory = []
+    start = True
     #import pdb; pdb.set_trace()
     try:
         while True:
@@ -211,7 +213,11 @@ def main(args):
                         npaa.append(screenshot)
                     with NpyAppendArray(actions_file) as npaa:
                         npaa.append(action)
+                    with NpyAppendArray(starts_file) as npaa:
+                        is_start = np.array([start])
+                        npaa.append(is_start)
                     print("Logged to trajectory with action", action)
+                    start = False
                 last_screenshot_len += 1
     except KeyboardInterrupt:
         listener.join()
