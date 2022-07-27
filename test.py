@@ -68,7 +68,7 @@ obs = th.zeros((1,128,128,3), dtype=th.float32, device=device)
 first = th.from_numpy(np.zeros((1),dtype=bool)).to(device)
 state = agent.initial_state(1)
 #import pdb; pdb.set_trace()
-action = agent.act(obs, first, state, stochastic=False)
+action, state_out, result = agent.act(obs, first, state, stochastic=False)
 
 # Test larger 
 batch_size = 4
@@ -77,5 +77,5 @@ obs = th.zeros((batch_size,timesteps,128,128,3), dtype=th.float32, device=device
 first = th.from_numpy(np.zeros((batch_size, timesteps),dtype=bool)).to(device)
 state = agent.initial_state(batch_size)
 
-(translation_actions, click_dists, click_logits), state_out = agent.forward(obs, first, state)
+(translation_actions, click_dists, click_logits, logp_actions), state_out = agent.forward(obs, first, state)
 import pdb; pdb.set_trace()

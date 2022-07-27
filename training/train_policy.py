@@ -14,12 +14,14 @@ import json
 from vpt.torch_util import set_default_torch_device
 from vpt.policy import HearthstoneAgentPolicy
 
+from training.trainer import Trainer
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def main(experiment_name, variant):
+def main(variant):
     device = variant.get('device', 'cuda')
     set_default_torch_device(device)
 
@@ -27,10 +29,19 @@ def main(experiment_name, variant):
 
     # Load data (no state or action norm needed)
     dir_path = os.path.dirname(os.path.realpath(__file__))
+    models_folder = os.path.join(dir_path, '..', 'models')
     data_folder = os.path.join(dir_path, "..", 'data')
     data_file_prefix = os.path.join(data_folder, variant['dataset'])
     state_file = os.path.join(data_file_prefix, 'states.npy')
-    actions_file = os.path.join(data_file_prefix, 'actions.npy')
+
+    if variant['action_type'] == 'relative':
+        action_file_end = 'actions_relative'
+    elif variant['action_type'] == 'absolute':
+        action_file_end = 'actions_absolute'
+    else:
+        raise Exception("invalid action type")
+    actions_file = os.path.join(data_file_prefix, action_file_end + '.npy')
+
     start_file = os.path.join(data_file_prefix, 'starts.npy')
 
 
@@ -47,7 +58,7 @@ def main(experiment_name, variant):
 
     img_size = 128
     # Original img shape 99,128,3
-    assert (states[2] == 128), "width expected to match"
+    assert (states.shape[2] == 128), "width expected to match"
     original_height = states.shape[1]
     height_padding = img_size - original_height
 
@@ -55,16 +66,17 @@ def main(experiment_name, variant):
 
     # Store trajectory starts, ends, lengths
     start_indexes = np.arange(num_transitions)[starts]
-    end_indexes = np.array([*start_indexes[1:], num_transitions - 1])
+    end_indexes = np.array([*start_indexes[1:] - 1, num_transitions - 1])
     trajectory_lengths = end_indexes - start_indexes + 1
     p_sample = trajectory_lengths / trajectory_lengths.sum()
 
     # Load policy architecture config
     config_file = os.path.join(dir_path, 'config', variant['policy_config'] + '.json')
-    policy_kwargs = json.load(open())
+    policy_kwargs = json.load(open(config_file,'r'))
+    variant.update(policy_kwargs)
 
     # create batch sampler
-    def get_batch(batch_size=64, max_len=config_file['timesteps']):
+    def get_batch(batch_size=64, max_len=variant['timesteps']):
         batch_inds = np.random.choice(
             np.arange(num_trajectories),
             size=batch_size,
@@ -77,10 +89,11 @@ def main(experiment_name, variant):
         s, a, mask = [], [], []
         for i in range(batch_size):
             # Get start index
-            si = random.randint(start_indexes[i], end_indexes[i])
+            index = batch_inds[i]
+            si = random.randint(start_indexes[index], end_indexes[index])
 
             # Get states
-            ei = min(si+max_len, end_indexes[i] + 1)
+            ei = min(si+max_len, end_indexes[index] + 1)
             new_states = states[si:ei]
 
             # Get timestep padding info
@@ -88,19 +101,19 @@ def main(experiment_name, variant):
             timestep_padding_value = max_len - num_included_steps
 
             # Pad height
-            padding = np.zeros(num_included_steps, height_padding, img_size, 3)
+            padding = np.zeros((num_included_steps, height_padding, img_size, 3))
             new_states = np.concatenate([new_states, padding], axis=1)
 
             # Get actions
-            new_actions = states[si:ei]
+            new_actions = actions[si:ei]
             
             # Pad states and actions to max_len
-            new_states = np.concatenate([new_states, np.zeros(timestep_padding_value, img_size, img_size, 3)],axis=0)
-            new_actions = np.concatenate([new_actions, np.zeros(timestep_padding_value, action_dim)])
+            new_states = np.concatenate([new_states, np.zeros((timestep_padding_value, img_size, img_size, 3))],axis=0)
+            new_actions = np.concatenate([new_actions, np.zeros((timestep_padding_value, action_dim))])
             
-            new_states = new_states.expand_dims(new_states, axis=0)
-            new_actions = new_actions.expand_dims(new_actions, axis=0)
-            new_mask = np.concatenate([np.ones(1, num_included_steps), np.zeros(1, timestep_padding_value)], axis=1)
+            new_states = np.expand_dims(new_states, axis=0)
+            new_actions = np.expand_dims(new_actions, axis=0)
+            new_mask = np.concatenate([np.ones((1, num_included_steps)), np.zeros((1, timestep_padding_value))], axis=1)
 
             s.append(new_states)
             a.append(new_actions)
@@ -114,7 +127,7 @@ def main(experiment_name, variant):
         return s, a, mask
 
     # Set up model
-    policy = HearthstoneAgentPolicy(policy_kwargs=policy_kwargs).to(device=device)
+    policy = HearthstoneAgentPolicy(policy_kwargs=policy_kwargs, pi_head_kwargs={}).to(device=device)
     print("Trainable model params", count_parameters(policy))
 
     # Set up optimizer and loss
@@ -124,12 +137,17 @@ def main(experiment_name, variant):
         weight_decay=variant['weight_decay']
     )
 
+    loss_fn = lambda translation_actions, target_translation_actions, logp_actions: th.mean((target_translation_actions - translation_actions)**2)  - th.mean(logp_actions)
+
+
     dataset=variant['dataset'] 
     group_name = f'{dataset}-policy'
     exp_prefix = f'{group_name}-{random.randint(int(1e5), int(1e6) - 1)}'
-    # Start training
+
+
+
+    # setup WANDB
     if log_to_wandb:
-        variant.update(policy_kwargs)
         wandb.init(
             name=exp_prefix,
             group=group_name,
@@ -137,6 +155,10 @@ def main(experiment_name, variant):
             config=variant
         )
 
+    # Set up trainer
+    trainer = Trainer(policy, optimizer, variant['batch_size'], get_batch, loss_fn, device)
+
+    # Start Training
     for i in range(variant['max_iters']):
         outputs = trainer.train_iteration(num_steps=variant['num_steps_per_iter'], iter_num=i+1, print_logs=True)
         if log_to_wandb:
@@ -144,7 +166,16 @@ def main(experiment_name, variant):
             
     # Optionally save model
     if variant['save_model']:
-        raise NotImplementedError("Saving not implemented")
+        model_folder = os.path.join(models_folder, exp_prefix)
+        if not os.path.isdir(model_folder):
+            os.mkdir(model_folder)
+        model_path =  os.path.join(model_folder, exp_prefix + '.pt')
+        th.save(policy.state_dict(), model_path)
+        # write config 
+        policy_kwargs['action_type'] = variant['action_type']
+        config_path = os.path.join(model_folder, 'config.json')
+        with open(config_path, 'w') as config_file:
+            json.dump(policy_kwargs, config_file, ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':
@@ -157,8 +188,9 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--dataset', required=True, type=str)
     parser.add_argument('--batch_size', default=64, type=int)
-    parser.add_argument('--max_iters', default=10)
+    parser.add_argument('--max_iters', default=10, type=int)
     parser.add_argument('--num_steps_per_iter', type=int, default=10000)
+    parser.add_argument('--action_type', default='absolute', choices=['relative','absolute'])
     args = parser.parse_args()
 
-    main('gym-experiment', variant=vars(args))
+    main(variant=vars(args))

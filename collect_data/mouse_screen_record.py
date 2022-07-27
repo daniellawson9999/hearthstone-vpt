@@ -95,7 +95,8 @@ def main(args):
     if not os.path.isdir(data_file_prefix):
         os.mkdir(data_file_prefix)
     state_file = os.path.join(data_file_prefix, 'states.npy')
-    actions_file = os.path.join(data_file_prefix, 'actions.npy')
+    actions_relative_file = os.path.join(data_file_prefix, 'actions_relative.npy')
+    actions_absolute_file = os.path.join(data_file_prefix, 'actions_absolute.npy')
     starts_file = os.path.join(data_file_prefix, 'starts.npy')
 
     global any_window
@@ -203,28 +204,34 @@ def main(args):
                         has_released = 0
                         press_and_release = 1
                     nothing = int(not (has_pressed or has_released or press_and_release))
-                    action = [x_diff / 1920, y_diff / 1080, has_pressed, has_released, press_and_release, nothing]
+                    action_relative = [x_diff / 1920, y_diff / 1080, has_pressed, has_released, press_and_release, nothing]
+                    action_absolute = [last_x / 1920, last_y / 1080, has_pressed, has_released, press_and_release, nothing]
                 else:
-                    action = [0,0,  0,0,0,  1]
+                    action_relative = action_absolute = [0,0,  0,0,0,  1]
                 #trajectory.append([screenshot, action])
-                action = np.array([action], dtype=np.float32)
-                if not args.remove_nulls or (args.remove_nulls and np.abs(action).sum() != 0):
+                action_relative = np.array([action_relative], dtype=np.float32)
+                action_absolute = np.array([action_absolute], dtype=np.float32)
+                if not args.remove_nulls or (args.remove_nulls and np.abs(action_relative).sum() != 0):
                     with NpyAppendArray(state_file) as npaa:
                         npaa.append(screenshot)
-                    with NpyAppendArray(actions_file) as npaa:
-                        npaa.append(action)
+                    with NpyAppendArray(actions_relative_file) as npaa:
+                        npaa.append(action_relative)
+                    with NpyAppendArray(actions_absolute_file) as npaa:
+                        npaa.append(action_absolute)
                     with NpyAppendArray(starts_file) as npaa:
                         is_start = np.array([start])
                         npaa.append(is_start)
-                    print("Logged to trajectory with action", action)
+                    print("Logged to trajectory with action", action_absolute)
                     start = False
                 last_screenshot_len += 1
     except KeyboardInterrupt:
         listener.join()
         imager.join()
+        key_listener.join()
     except Exception:
         listener.join()
         imager.join()
+        key_listener.join()
 
 
 if __name__ == "__main__":

@@ -230,12 +230,12 @@ class PolicyHead(nn.Module):
 
         logp_actions = None
         if target_actions is not None:
-            logp_acitons = click_dists.log_prob(target_actions)
+            logp_actions = click_dists.log_prob(th.argmax(target_actions[:,:,2:],dim=-1))
 
         # Compute mouse translation actions
         translation_actions = self.translation_layer(input_data)
 
-        return translation_actions, click_dists, click_logits
+        return translation_actions, click_dists, click_logits, logp_actions
 
     def click_sample(self, distributions, deterministic=True):
         if deterministic:
@@ -244,7 +244,7 @@ class PolicyHead(nn.Module):
             return distributions.sample()
     
     def click_logprob(self, actions, distribitions):
-        return distribitions.log_prob(actions)
+        return distribitions.log_prob(th.argmax(actions[:,:,2:],dim=-1))
         
     
 
@@ -273,7 +273,7 @@ class HearthstoneAgentPolicy(nn.Module):
         self.pi_head.reset_parameters()
         #self.value_head.reset_parameters()
 
-    def forward(self, obs, first: th.Tensor, state_in):
+    def forward(self, obs, first: th.Tensor, state_in, target_actions=None):
         # if isinstance(obs, dict):
         #     # We don't want to mutate the obs input.
         #     obs = obs.copy()
@@ -288,12 +288,12 @@ class HearthstoneAgentPolicy(nn.Module):
         pi_h, state_out = self.net(obs, state_in, context={"first": first})
 
         #pi_logits = self.pi_head(pi_h)
-        translation_actions, click_dists, click_logits =  self.pi_head(pi_h)
+        translation_actions, click_dists, click_logits, logp_actions =  self.pi_head(pi_h, target_actions)
         #vpred = self.value_head(v_h)
 
         #return (pi_logits, vpred, None), state_out
         #return (pi_logits, None, None), state_out
-        return (translation_actions, click_dists, click_logits), state_out
+        return (translation_actions, click_dists, click_logits, logp_actions), state_out
 
     @th.no_grad()
     def act(self, obs, first, state_in, stochastic: bool = True, taken_action=None, return_pd=False):
@@ -301,7 +301,7 @@ class HearthstoneAgentPolicy(nn.Module):
         obs = tree_map(lambda x: x.unsqueeze(1), obs)
         first = first.unsqueeze(1)
 
-        (translation_actions, click_dists, click_logits), state_out = self(obs=obs, first=first, state_in=state_in)
+        (translation_actions, click_dists, click_logits, logp_actions), state_out = self(obs=obs, first=first, state_in=state_in)
 
         if taken_action is None:
             click_actions = self.pi_head.click_sample(click_dists, deterministic=not stochastic)
@@ -309,14 +309,15 @@ class HearthstoneAgentPolicy(nn.Module):
             ac = th.cat([translation_actions, click_actions_onehot], dim=-1)
         else:
             ac = tree_map(lambda x: x.unsqueeze(1), taken_action)
-        click_log_prob = self.pi_head.click_logprob(click_actions, click_dists)
-        assert not th.isnan(click_log_prob).any()
+        #click_log_prob = self.pi_head.click_logprob(click_actions, click_dists)
+        #assert not th.isnan(click_log_prob).any()
 
         # After unsqueezing, squeeze back to remove fictitious time dimension
         #result = {"log_prob": log_prob[:, 0], "vpred": self.value_head.denormalize(vpred)[:, 0]}
-        result = {"click_log_prob": click_log_prob[:, 0]}
-        if return_pd:
-            result["click_pd"] = tree_map(lambda x: x[:, 0], click_dists)
+        # result = {"click_log_prob": click_log_prob[:, 0]}
+        # if return_pd:
+        #     result["click_pd"] = tree_map(lambda x: x[:, 0], click_dists)
+        result = None
         ac = tree_map(lambda x: x[:, 0], ac)
 
         return ac, state_out, result
@@ -410,7 +411,7 @@ class InverseActionPolicy(nn.Module):
         self.net.reset_parameters()
         self.pi_head.reset_parameters()
 
-    def forward(self, obs, first: th.Tensor, state_in, **kwargs):
+    def forward(self, obs, first: th.Tensor, state_in, target_actions=None, **kwargs):
         # if isinstance(obs, dict):
         #     # We don't want to mutate the obs input.
         #     obs = obs.copy()
@@ -423,9 +424,9 @@ class InverseActionPolicy(nn.Module):
         #     mask = None
 
         pi_h, state_out = self.net(obs, state_in=state_in, context={"first": first}, **kwargs)
-        translation_actions, click_dists, click_logits = self.pi_head(pi_h)
+        translation_actions, click_dists, click_logits, logp_actions = self.pi_head(pi_h, target_actions=target_actions)
         #return (pi_logits, None, None), state_out
-        return (translation_actions, click_dists, click_logits), state_out
+        return (translation_actions, click_dists, click_logits, logp_actions), state_out
 
     @th.no_grad()
     def predict(
@@ -434,7 +435,7 @@ class InverseActionPolicy(nn.Module):
         deterministic: bool = True,
         **kwargs,
     ):
-        (translation_actions, click_dists, click_logits), state_out  = self(obs=obs, **kwargs)
+        (translation_actions, click_dists, click_logits, logp_actions), state_out  = self(obs=obs, **kwargs)
 
         # ac = self.pi_head.sample(pd, deterministic=deterministic)
         # log_prob = self.pi_head.logprob(ac, pd)

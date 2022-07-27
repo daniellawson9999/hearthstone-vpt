@@ -5,7 +5,7 @@ from time import sleep
 
 window_handle = FindWindow(None, "Hearthstone")
 win32gui.SetForegroundWindow(window_handle)
-sleep(1)
+sleep(3)
 img = pyautogui.screenshot()
 # scale = 1/8
 # resized_im = img.resize((round(img.size[0]*scale), round(img.size[1]*scale)))
