@@ -1,6 +1,10 @@
 import pyautogui
 import win32gui
 from win32gui import GetWindowText, GetForegroundWindow, FindWindow, GetWindowRect
+import ctypes, win32gui, win32ui
+from PIL import Image, ImageGrab, ImageDraw
+
+import time
 import time
 from enum import Enum, auto
 from pynput import mouse, keyboard
@@ -68,12 +72,82 @@ def collect_screenshots():
         if done: return
         if GetWindowText(GetForegroundWindow()) == target_window or any_window:
             start_time = time.time_ns()
-            screenshot = pyautogui.screenshot()
+            #screenshot = pyautogui.screenshot()
+            screenshot = take_screenshot()
             screenshots.append([start_time, screenshot])
             end_time = time.time_ns()
             time_taken = ((start_time - end_time) / 1e9)
             extra_time = target_delay - time_taken
             if extra_time > 0: time.sleep(extra_time)
+
+def take_screenshot():
+    size = round(ctypes.windll.shcore.GetScaleFactorForDevice(0) / 100 * 32)
+
+    cursor = get_cursor()
+
+    pixdata = cursor.load()
+    minsize = [size, None]
+
+    width, height = cursor.size
+    for y in range(height):
+        for x in range(width):
+
+            if pixdata[x, y] == (0, 0, 0, 255):
+                pixdata[x, y] = (0, 0, 0, 0)
+
+            else:
+                if minsize[1] == None:
+                    minsize[1] = y
+
+                if x < minsize[0]:
+                    minsize[0] = x
+
+    ratio = ctypes.windll.shcore.GetScaleFactorForDevice(0) / 100
+
+    img = ImageGrab.grab(bbox=None, include_layered_windows=True)
+
+    pos_win = win32gui.GetCursorPos()
+    pos = (round(pos_win[0]*ratio), round(pos_win[1]*ratio))
+
+    img.paste(cursor, pos, cursor)
+    return img
+
+def get_cursor():
+    hcursor = win32gui.GetCursorInfo()[1]
+    hdc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
+    hbmp = win32ui.CreateBitmap()
+    hbmp.CreateCompatibleBitmap(hdc, 36, 36)
+    hdc = hdc.CreateCompatibleDC()
+    hdc.SelectObject(hbmp)
+    hdc.DrawIcon((0,0), hcursor)
+    
+    bmpinfo = hbmp.GetInfo()
+    bmpbytes = hbmp.GetBitmapBits()
+    bmpstr = hbmp.GetBitmapBits(True)
+    cursor = Image.frombuffer('RGB', (bmpinfo['bmWidth'], bmpinfo['bmHeight']), bmpstr, 'raw', 'BGRX', 0, 1).convert("RGBA")
+    
+    #win32gui.DestroyIcon(hcursor)    
+    win32gui.DeleteObject(hbmp.GetHandle())
+    hdc.DeleteDC()
+
+    pixdata = cursor.load()
+    minsize = [32, None]
+
+    width, height = cursor.size
+    for y in range(height):
+        for x in range(width):
+
+            if pixdata[x, y] == (0, 0, 0, 255):
+                pixdata[x, y] = (0, 0, 0, 0)
+
+            else:
+                if minsize[1] == None:
+                    minsize[1] = y
+
+                if x < minsize[0]:
+                    minsize[0] = x
+
+    return cursor
 
 def crop_resize_img(img):
     left = 280
@@ -165,6 +239,7 @@ def main(args):
                 # Convert to numpy
                 screenshot = np.array(raw_screenshot) / 255
                 screenshot = np.expand_dims(screenshot, axis=0)
+                print(screenshot.shape)
                 del raw_screenshot
 
 
