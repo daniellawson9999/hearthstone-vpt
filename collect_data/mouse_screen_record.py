@@ -1,4 +1,6 @@
 import pyautogui
+import pyautogui as pag
+
 import win32gui
 from win32gui import GetWindowText, GetForegroundWindow, FindWindow, GetWindowRect
 import ctypes, win32gui, win32ui
@@ -64,26 +66,54 @@ def on_press(key):
 def on_release(key):
     pass
 
+def accurate_delay(delay):
+    target_time = time.perf_counter() + delay
+    while time.perf_counter() < target_time:
+        pass
 
 
-def collect_screenshots():
-    target_delay = 1/10
+
+def collect_screenshots(log_file_name=None, target_delay=1/10):
     while True:
         if done: return
+        #start_time = time.time_ns()
+        start_time = time.perf_counter_ns()
         if GetWindowText(GetForegroundWindow()) == target_window or any_window:
-            start_time = time.time_ns()
             #screenshot = pyautogui.screenshot()
-            screenshot = take_screenshot()
+            screenshot, success = take_screenshot()
+            if not success:
+                with open(log_file_name, 'a+') as log_file:
+                    log_file.write('get mouse cursor at ' + str(time.time()) + '\n')
+                continue
             screenshots.append([start_time, screenshot])
-            end_time = time.time_ns()
-            time_taken = ((start_time - end_time) / 1e9)
-            extra_time = target_delay - time_taken
-            if extra_time > 0: time.sleep(extra_time)
+            #end_time = time.time_ns()
+            end_time = time.perf_counter_ns()
+            time_taken = ((end_time - start_time) / 1e9)
+            #time_taken = end_time - start_time
+            print("time taken", time_taken)
+            #adjustment = 0.05
+            adjustment = 0
+            extra_time = target_delay - time_taken - adjustment
+            #before_sleep_time = time.time()
+            before_sleep_time = time.perf_counter()
+            if extra_time > 0: accurate_delay(extra_time)
+            total_time = time.perf_counter() - before_sleep_time + time_taken
+            print("total time", total_time)
+            #adjustment = total_time - target_delay
 
 def take_screenshot():
     size = round(ctypes.windll.shcore.GetScaleFactorForDevice(0) / 100 * 32)
+    success = True
 
-    cursor = get_cursor()
+    cursor = None
+    try:
+        cursor = get_cursor()
+    except Exception:
+        #pag.alert(text="Mouse error", title="Mouse Error")
+        success = False
+        print("Failed to get cursor")
+        return None, success
+
 
     pixdata = cursor.load()
     minsize = [size, None]
@@ -110,7 +140,7 @@ def take_screenshot():
     pos = (round(pos_win[0]*ratio), round(pos_win[1]*ratio))
 
     img.paste(cursor, pos, cursor)
-    return img
+    return img, success
 
 def get_cursor():
     hcursor = win32gui.GetCursorInfo()[1]
@@ -172,6 +202,7 @@ def main(args):
     actions_relative_file = os.path.join(data_file_prefix, 'actions_relative.npy')
     actions_absolute_file = os.path.join(data_file_prefix, 'actions_absolute.npy')
     starts_file = os.path.join(data_file_prefix, 'starts.npy')
+    log_file = os.path.join(data_file_prefix, 'logs.txt')
 
     global any_window
     any_window = args.any_window
@@ -185,7 +216,7 @@ def main(args):
         on_click=on_click,
         on_scroll=on_scroll
     )
-    imager = threading.Thread(target=collect_screenshots)
+    imager = threading.Thread(target=collect_screenshots, kwargs={'log_file_name':log_file, 'target_delay': args.target_delay})
 
     key_listener = keyboard.Listener(
         on_press=on_press,
@@ -223,6 +254,8 @@ def main(args):
             if done:
                 listener.join()
                 imager.join()
+                key_listener.join()
+                print("number of screenshots  ", num_screenshots, "number procssed", last_screenshot_len)
                 break
             num_screenshots = len(screenshots)
             behind = num_screenshots - last_screenshot_len
@@ -296,7 +329,8 @@ def main(args):
                     with NpyAppendArray(starts_file) as npaa:
                         is_start = np.array([start])
                         npaa.append(is_start)
-                    print("Logged to trajectory with action", action_absolute)
+                    rounded = np.around(action_relative, decimals=2)
+                    print("Logged to trajectory with action", rounded)
                     start = False
                 last_screenshot_len += 1
     except KeyboardInterrupt:
@@ -314,5 +348,6 @@ if __name__ == "__main__":
     parser.add_argument('--data_name', default='test', type=str)
     parser.add_argument('--any_window', default=False, action='store_true', help="records any window, useful for debugging")
     parser.add_argument('--remove_nulls', default=False, action='store_true')
+    parser.add_argument('--target_delay', type=float, default=0.25)
     args = parser.parse_args()
     main(args)
