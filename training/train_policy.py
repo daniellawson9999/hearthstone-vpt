@@ -32,7 +32,12 @@ def main(variant):
     models_folder = os.path.join(dir_path, '..', 'models')
     data_folder = os.path.join(dir_path, "..", 'data')
     data_file_prefix = os.path.join(data_folder, variant['dataset'])
-    state_file = os.path.join(data_file_prefix, 'states.npy')
+
+    if not variant['use_npz']:
+        state_ending = '.npy'
+    else:
+        state_ending = '.npz'
+    state_file = os.path.join(data_file_prefix, 'states' + state_ending)
 
     if variant['action_type'] == 'relative':
         action_file_end = 'actions_relative'
@@ -41,6 +46,7 @@ def main(variant):
     else:
         raise Exception("invalid action type")
     actions_file = os.path.join(data_file_prefix, action_file_end + '.npy')
+
 
     start_file = os.path.join(data_file_prefix, 'starts.npy')
 
@@ -191,6 +197,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_iters', default=10, type=int)
     parser.add_argument('--num_steps_per_iter', type=int, default=10000)
     parser.add_argument('--action_type', default='absolute', choices=['relative','absolute'])
+    parser.add_argument('--use_npz', default=False, action='store_true')
     args = parser.parse_args()
 
     main(variant=vars(args))
