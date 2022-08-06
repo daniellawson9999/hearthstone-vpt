@@ -17,19 +17,28 @@ class Trainer:
     
     def train_iteration(self, num_steps, iter_num=0, print_logs=True):
         train_losses = []
+        translation_losses = []
+        click_losses = []
         logs = {}
 
         train_start = time.time()
 
         self.model.train()
         for _ in range(num_steps):
-            train_loss = self.train_step()
+            train_loss,translation_loss, click_loss = self.train_step()
             train_losses.append(train_loss)
+            translation_losses.append(translation_loss)
+            click_losses.append(click_loss)
 
         logs['time/training'] = time.time() - train_start
 
         logs['time/total'] = time.time() - self.start_time
         logs['training/train_loss_mean'] = np.mean(train_losses)
+        logs['training/train_loss'] = train_losses[-1]
+        logs['training/train_loss_translation_mean'] = np.mean(translation_losses)
+        logs['training/train_loss_click_mean'] = np.mean(click_losses)
+        logs['training/train_loss_translation'] = translation_losses[-1]
+        logs['training/train_loss_click'] = click_losses[-1]
         logs['training/train_loss_std'] = np.std(train_losses)
 
 
@@ -58,7 +67,7 @@ class Trainer:
         target_translation_actions = actions[:,:,:2].reshape(-1, 2)[mask > 0]
         translation_actions = translation_actions.reshape(-1, 2)[mask > 0]
         logp_actions = logp_actions.reshape(-1)[mask > 0]
-        loss = self.loss_fn(translation_actions, target_translation_actions, logp_actions)
+        loss,translation_loss,click_loss = self.loss_fn(translation_actions, target_translation_actions, logp_actions)
 
         # perform backpropation, gradient descent
         self.optimizer.zero_grad()
@@ -66,5 +75,5 @@ class Trainer:
         # TODO, could clip gradient
         self.optimizer.step()
 
-        return loss.detach().cpu().item()
+        return loss.detach().cpu().item(), translation_loss.detach().cpu().item(), click_loss.detach().cpu().item()
 

@@ -305,7 +305,7 @@ class HearthstoneAgentPolicy(nn.Module):
 
         if taken_action is None:
             click_actions = self.pi_head.click_sample(click_dists, deterministic=not stochastic)
-            click_actions_onehot = F.one_hot(click_actions, num_classes=3)
+            click_actions_onehot = F.one_hot(click_actions, num_classes=4)
             ac = th.cat([translation_actions, click_actions_onehot], dim=-1)
         else:
             ac = tree_map(lambda x: x.unsqueeze(1), taken_action)
@@ -442,7 +442,7 @@ class InverseActionPolicy(nn.Module):
 
         click_actions = self.pi_head.click_sample(click_dists, deterministic=deterministic)
         click_log_prob = self.pi_head.click_logprob(click_actions, click_dists)
-        click_actions_onehot = F.one_hot(click_actions, num_classes=3)
+        click_actions_onehot = F.one_hot(click_actions, num_classes=4)
         ac = th.cat([translation_actions, click_actions_onehot], dim=-1)
         
 

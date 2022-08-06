@@ -143,7 +143,11 @@ def main(variant):
         weight_decay=variant['weight_decay']
     )
 
-    loss_fn = lambda translation_actions, target_translation_actions, logp_actions: th.mean((target_translation_actions - translation_actions)**2)  - th.mean(logp_actions)
+    def loss_fn(translation_actions, target_translation_actions, logp_actions): 
+        translation_loss = th.mean((target_translation_actions - translation_actions)**2)
+        click_loss = -th.mean(logp_actions)
+        loss = translation_loss + click_loss
+        return loss, translation_loss, click_loss
 
 
     dataset=variant['dataset'] 
