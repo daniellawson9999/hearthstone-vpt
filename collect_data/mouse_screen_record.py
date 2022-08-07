@@ -35,7 +35,7 @@ any_window = False
 def on_move(x, y):
     if done: return False
     if GetWindowText(GetForegroundWindow()) == target_window or any_window:
-        event_time = time.time_ns()
+        event_time = time.perf_counter_ns()
         #print('Pointer moved to {0}'.format((x, y)))
         events.append([EventType.move, event_time, (x,y)])
     
@@ -43,7 +43,7 @@ def on_move(x, y):
 def on_click(x, y, button, pressed):
     if done: return False
     if GetWindowText(GetForegroundWindow()) == target_window or any_window:
-        event_time = time.time_ns()
+        event_time = time.perf_counter_ns()
         #print('{0} at {1}'.format('Pressed' if pressed else 'Released',(x, y)))
         if pressed: 
             event_type = EventType.press
@@ -276,8 +276,8 @@ def main(args):
                 del raw_screenshot
 
 
-                # If no events taken place, empty action
-                if next_event_index < len(events):
+                # If no events taken place, empty action, or next event taken before screenshot
+                if next_event_index < len(events) and events[next_event_index][1] < screenshot_time:
                     # otherwise gather events taken
                     last_x = 0
                     last_y = 0
@@ -305,6 +305,8 @@ def main(args):
                     else:
                         x_diff = 0
                         y_diff = 0
+                    # if last_x == 0 and last_y == 0:
+                    #     print(event_type)
                     prev_x_y = [last_x, last_y]
                     press_and_release = 0
                     if has_pressed and has_released:
@@ -314,8 +316,17 @@ def main(args):
                     nothing = int(not (has_pressed or has_released or press_and_release))
                     action_relative = [x_diff / 1920, y_diff / 1080, has_pressed, has_released, press_and_release, nothing]
                     action_absolute = [last_x / 1920, last_y / 1080, has_pressed, has_released, press_and_release, nothing]
+                    # print(last_x, last_y)
+                    # print(last_x == 0 and last_y == 0)
                 else:
-                    action_relative = action_absolute = [0,0,  0,0,0,  1]
+                    action_relative = [0,0,  0,0,0,  1]
+                    #action_absolute = [0,0,  0,0,0,  1]
+                    if prev_x_y is None:
+                        #print('jaaaaaaaaaaaaaaaaaaaaa')
+                        action_absolute = [0,0,  0,0,0,  1]
+                    else:
+                        action_absolute = [float(prev_x_y[0] / 1920), float(prev_x_y[1] / 1080),  0,0,0,  1]
+
                 #trajectory.append([screenshot, action])
                 action_relative = np.array([action_relative], dtype=np.float32)
                 action_absolute = np.array([action_absolute], dtype=np.float32)
@@ -329,8 +340,10 @@ def main(args):
                     with NpyAppendArray(starts_file) as npaa:
                         is_start = np.array([start])
                         npaa.append(is_start)
-                    rounded = np.around(action_relative, decimals=2)
-                    print("Logged to trajectory with action", rounded)
+                    # rounded = np.around(action_relative, decimals=2)
+                    # print("Logged to trajectory with action", rounded)
+                    print("Logged to trajectory with action", action_absolute)
+                    #print("action", action_relative)
                     start = False
                 last_screenshot_len += 1
     except KeyboardInterrupt:
