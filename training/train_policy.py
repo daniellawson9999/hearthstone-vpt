@@ -62,6 +62,26 @@ def main(variant):
     num_transitions = states.shape[0]
     print(num_transitions, "total transitions")
 
+    # filter nulls
+    if variant['filter_nulls']:
+        # Find repeated actions
+        good_index = []
+        last_action = np.zeros_like(actions[0])
+        for i in range(len(actions)):
+            if not np.array_equal(actions[i],last_action):
+                good_index.append(i)
+            last_action = actions[i]
+        # Remove
+        actions = actions[good_index]
+        states = states[good_index]
+        starts = starts[good_index]
+
+        # After removing repeated actions
+        num_transitions = states.shape[0]
+        print(num_transitions, "new total transitions")
+
+    import pdb; pdb.set_trace()
+
     img_size = 128
     # Original img shape 99,128,3
     assert (states.shape[2] == 128), "width expected to match"
@@ -202,6 +222,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps_per_iter', type=int, default=10000)
     parser.add_argument('--action_type', default='absolute', choices=['relative','absolute'])
     parser.add_argument('--use_npz', default=False, action='store_true')
+    parser.add_argument('--filter_nulls', default=False, action='store_true')
     args = parser.parse_args()
 
     main(variant=vars(args))

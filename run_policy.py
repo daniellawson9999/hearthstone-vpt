@@ -68,7 +68,7 @@ def main(args):
     device = args.device
     set_default_torch_device(device)
 
-    policy_dir = os.path.join('.', 'hearthstone', 'models', args.policy)
+    policy_dir = os.path.join('.', 'models', args.policy)
     policy_weight_file = os.path.join(policy_dir, args.policy + '.pt')
     policy_config_file = os.path.join(policy_dir, 'config.json')
 
