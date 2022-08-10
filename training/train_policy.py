@@ -80,7 +80,6 @@ def main(variant):
         num_transitions = states.shape[0]
         print(num_transitions, "new total transitions")
 
-    import pdb; pdb.set_trace()
 
     img_size = 128
     # Original img shape 99,128,3
