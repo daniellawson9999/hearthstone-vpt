@@ -357,7 +357,8 @@ class InverseActionNet(HearthstonePolicy):
 
     def forward(self, ob, state_in, context):
         first = context["first"]
-        x = self.img_preprocess(ob["img"])
+        #x = self.img_preprocess(ob["img"])
+        x = ob
 
         # Conv3D Prior to Impala
         if self.conv3d_layer is not None:
@@ -423,7 +424,7 @@ class InverseActionPolicy(nn.Module):
         # else:
         #     mask = None
 
-        pi_h, state_out = self.net(obs, state_in=state_in, context={"first": first}, **kwargs)
+        (pi_h,_), state_out = self.net(obs, state_in=state_in, context={"first": first}, **kwargs)
         translation_actions, click_dists, click_logits, logp_actions = self.pi_head(pi_h, target_actions=target_actions)
         #return (pi_logits, None, None), state_out
         return (translation_actions, click_dists, click_logits, logp_actions), state_out

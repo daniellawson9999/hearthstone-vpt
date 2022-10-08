@@ -17,7 +17,7 @@ import torch as th
 from vpt.policy import HearthstoneAgentPolicy
 from vpt.torch_util import set_default_torch_device
 
-from collect_data.mouse_screen_record import crop_resize_img
+from collect_data.mouse_screen_record import crop_resize_img, take_screenshot
 
 done = False
 model_enabled = True
@@ -53,8 +53,10 @@ def apply_action(mouse, action, relative_action=True):
         mouse.move(x_diff, y_diff)
     else:
         mouse.position = (x_diff, y_diff)
+    time.sleep(.05)
     
     if pressed:
+        print("pressed!")
         mouse.press(Button.left)
     elif released:
         mouse.release(Button.left)
@@ -111,7 +113,10 @@ def main(args):
                 # capture image, and transform to 128 by 128
                 if not args.any_window:
                     win32gui.SetForegroundWindow(window_handle)
-                screenshot = pyautogui.screenshot()
+                #screenshot = pyautogui.screenshot()
+                screenshot, success = take_screenshot()
+                if not success:
+                    pass
                 img = crop_resize_img(screenshot)
 
                 # Convert to numpy
