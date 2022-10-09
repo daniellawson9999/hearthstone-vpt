@@ -25,7 +25,7 @@
     "impala_kwargs":{
        "post_pool_groups":1
     },
-    "impala_width":8,
+    "impala_width":4,
     "init_norm_kwargs":{
        "batch_norm":false,
        "group_norm_groups":1
