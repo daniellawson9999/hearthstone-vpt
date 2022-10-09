@@ -195,7 +195,7 @@ def main(args):
     # Create directory and state/action files
     dir_path = os.path.dirname(os.path.realpath(__file__))
     data_folder = os.path.join(dir_path, "..", 'data')
-    data_file_prefix = os.path.join(data_folder, args.data_name)
+    data_file_prefix = os.path.join(data_folder, 'recordings', args.data_name)
     if not os.path.isdir(data_file_prefix):
         os.mkdir(data_file_prefix)
     state_file = os.path.join(data_file_prefix, 'states.npy')

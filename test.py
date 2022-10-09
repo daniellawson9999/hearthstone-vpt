@@ -24,11 +24,11 @@ def count_parameters(model):
 #     }
 
 policy_kwargs = {
-    "attention_heads": 8,
+    "attention_heads": 4,
     "attention_mask_style": "clipped_causal",
-    "attention_memory_size": 256,
+    "attention_memory_size": 32,
     "diff_mlp_embedding": False,
-    "hidsize": 1024,
+    "hidsize": 256,
     "img_shape": [
         128,
         128,
@@ -53,7 +53,7 @@ policy_kwargs = {
     "pointwise_use_activation": False,
     "recurrence_is_residual": True,
     "recurrence_type": "transformer",
-    "timesteps": 128,
+    "timesteps": 16,
     "use_pointwise_layer": True,
     "use_pre_lstm_ln": False
 }
@@ -69,6 +69,8 @@ first = th.from_numpy(np.zeros((1),dtype=bool)).to(device)
 state = agent.initial_state(1)
 #import pdb; pdb.set_trace()
 action, state_out, result = agent.act(obs, first, state, stochastic=False)
+import pdb; pdb.set_trace()
+
 
 # Test larger 
 batch_size = 4
@@ -78,4 +80,3 @@ first = th.from_numpy(np.zeros((batch_size, timesteps),dtype=bool)).to(device)
 state = agent.initial_state(batch_size)
 
 (translation_actions, click_dists, click_logits, logp_actions), state_out = agent.forward(obs, first, state)
-import pdb; pdb.set_trace()

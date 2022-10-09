@@ -57,7 +57,7 @@ def count_parameters(model):
 #    "use_pre_lstm_ln":False
 # }
 timesteps = 128
-timesteps = 32
+timesteps = 16
 policy_kwargs = {
    "attention_heads":4,
    "attention_mask_style":"none",
@@ -77,7 +77,7 @@ policy_kwargs = {
       ]
    },
    #"hidsize":4096,
-   'hidsize': 512,
+   'hidsize': 256,
    "img_shape":[
       128,
       128,
@@ -86,7 +86,7 @@ policy_kwargs = {
    "impala_kwargs":{
       "post_pool_groups":1
    },
-   "impala_width":16,
+   "impala_width":8,
    "init_norm_kwargs":{
       "batch_norm":False,
       "group_norm_groups":1
@@ -105,6 +105,7 @@ policy_kwargs = {
 
 # current policy has no temp
 policy = InverseActionPolicy(idm_net_kwargs = policy_kwargs, pi_head_kwargs={}).to(device=device)
+print("policy params", sum(p.numel() for p in policy.parameters() if p.requires_grad))
 
 dummy_first = th.zeros((timesteps, 1)).to(device=device)
 hidden_state = policy.initial_state(1)

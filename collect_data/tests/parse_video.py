@@ -15,7 +15,7 @@ def main(args):
     #video_name = 'Hearthstone Classic Zoo on EU!-download.mp4'
     video_name = 'Hearthstone Classic Zoo on EU!.mp4'
     video_path = os.path.join(dir_path, '..', '..', 'raw_videos', video_name)
-    data_folder = os.path.join(dir_path, '..', '..', 'data', args.data_folder)
+    data_folder = os.path.join(dir_path, '..', '..', 'data', 'youtube', args.data_folder)
     data_file_prefix = os.path.join(data_folder, args.output)
 
     print(video_path)

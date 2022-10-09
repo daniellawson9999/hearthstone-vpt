@@ -1,0 +1,34 @@
+{
+    "attention_heads": 4,
+    "attention_mask_style": "clipped_causal",
+    "attention_memory_size": 16,
+    "diff_mlp_embedding": false,
+    "hidsize": 256,
+    "img_shape": [
+        128,
+        128,
+        3
+    ],
+    "impala_chans": [
+        16,
+        32,
+        32
+    ],
+    "impala_kwargs": {
+        "post_pool_groups": 1
+    },
+    "impala_width": 4,
+    "init_norm_kwargs": {
+        "batch_norm": false,
+        "group_norm_groups": 1
+    },
+    "n_recurrence_layers": 2,
+    "only_img_input": true,
+    "pointwise_ratio": 4,
+    "pointwise_use_activation": false,
+    "recurrence_is_residual": true,
+    "recurrence_type": "transformer",
+    "timesteps": 8,
+    "use_pointwise_layer": true,
+    "use_pre_lstm_ln": false
+}
