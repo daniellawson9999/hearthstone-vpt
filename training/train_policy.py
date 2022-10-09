@@ -12,7 +12,7 @@ import pathlib
 import json
 
 from vpt.torch_util import set_default_torch_device
-from vpt.policy import HearthstoneAgentPolicy
+from vpt.policy import HearthstoneAgentPolicy, InverseActionPolicy
 
 from training.trainer import Trainer
 
@@ -152,7 +152,11 @@ def main(variant):
         return s, a, mask
 
     # Set up model
-    policy = HearthstoneAgentPolicy(policy_kwargs=policy_kwargs, pi_head_kwargs={}).to(device=device)
+    if variant['train_idm']:
+        policy =  InverseActionPolicy(idm_net_kwargs=policy_kwargs, pi_head_kwargs={}).to(device=device)
+    else:
+        policy = HearthstoneAgentPolicy(policy_kwargs=policy_kwargs, pi_head_kwargs={}).to(device=device)
+        
     print("Trainable model params", count_parameters(policy))
 
     # Set up optimizer and loss
@@ -171,6 +175,8 @@ def main(variant):
 
     dataset=variant['dataset'] 
     group_name = f'{dataset}-policy'
+    if variant['train_idm']:
+        group_name += '-idm'
     exp_prefix = f'{group_name}-{random.randint(int(1e5), int(1e6) - 1)}'
 
 
@@ -222,6 +228,7 @@ if __name__ == '__main__':
     parser.add_argument('--action_type', default='absolute', choices=['relative','absolute'])
     parser.add_argument('--use_npz', default=False, action='store_true')
     parser.add_argument('--filter_nulls', default=False, action='store_true')
+    parser.add_argument('--train_idm', default=False, action='store_true')
     args = parser.parse_args()
 
     main(variant=vars(args))

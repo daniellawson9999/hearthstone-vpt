@@ -316,13 +316,10 @@ def main(args):
                     nothing = int(not (has_pressed or has_released or press_and_release))
                     action_relative = [x_diff / 1920, y_diff / 1080, has_pressed, has_released, press_and_release, nothing]
                     action_absolute = [last_x / 1920, last_y / 1080, has_pressed, has_released, press_and_release, nothing]
-                    # print(last_x, last_y)
-                    # print(last_x == 0 and last_y == 0)
                 else:
                     action_relative = [0,0,  0,0,0,  1]
                     #action_absolute = [0,0,  0,0,0,  1]
                     if prev_x_y is None:
-                        #print('jaaaaaaaaaaaaaaaaaaaaa')
                         action_absolute = [0,0,  0,0,0,  1]
                     else:
                         action_absolute = [float(prev_x_y[0] / 1920), float(prev_x_y[1] / 1080),  0,0,0,  1]
