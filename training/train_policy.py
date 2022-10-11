@@ -174,7 +174,8 @@ def main(variant):
 
 
     dataset=variant['dataset'] 
-    group_name = f'{dataset}-policy'
+    dataset_for_name = dataset.replace('/', '-')
+    group_name = f'{dataset_for_name}-policy'
     if variant['train_idm']:
         group_name += '-idm'
     exp_prefix = f'{group_name}-{random.randint(int(1e5), int(1e6) - 1)}'
