@@ -56,6 +56,14 @@ def main(variant):
     starts = np.load(start_file, mmap_mode='r')
 
 
+    click_weights = None
+    # calculate click action frequency
+    if variant['reweight_click']:
+        click_actions = actions[:, 2:]
+        counts = click_actions.sum(axis=0)
+        proportions = counts / sum(counts)
+        click_weights = 1 - proportions
+
     assert (states.shape[0] == actions.shape[0]), "unequal number of states and actions"
 
     num_trajectories = starts.sum()
@@ -166,8 +174,14 @@ def main(variant):
         weight_decay=variant['weight_decay']
     )
 
-    def loss_fn(translation_actions, target_translation_actions, logp_actions): 
+    def loss_fn(translation_actions, target_translation_actions, logp_actions, target_click_actions): 
         translation_loss = th.mean((target_translation_actions - translation_actions)**2)
+        if variant['reweight_click']:
+            weights = th.tensor(click_weights, device=device)
+            click_action_weights = weights[target_click_actions.argmax(dim=-1)]
+            # reweight log probs
+            logp_actions = logp_actions * click_action_weights
+
         click_loss = -th.mean(logp_actions)
         loss = translation_loss + click_loss
         return loss, translation_loss, click_loss
@@ -230,6 +244,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_npz', default=False, action='store_true')
     parser.add_argument('--filter_nulls', default=False, action='store_true')
     parser.add_argument('--train_idm', default=False, action='store_true')
+    parser.add_argument('--reweight_click', default=False, action='store_true')
     args = parser.parse_args()
 
     main(variant=vars(args))

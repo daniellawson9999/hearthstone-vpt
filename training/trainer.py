@@ -66,8 +66,9 @@ class Trainer:
         mask = mask.reshape(-1)
         target_translation_actions = actions[:,:,:2].reshape(-1, 2)[mask > 0]
         translation_actions = translation_actions.reshape(-1, 2)[mask > 0]
+        target_click_actions = actions[:, :, 2:].reshape(-1, actions.shape[-1] - 2)[mask > 0]
         logp_actions = logp_actions.reshape(-1)[mask > 0]
-        loss,translation_loss,click_loss = self.loss_fn(translation_actions, target_translation_actions, logp_actions)
+        loss,translation_loss,click_loss = self.loss_fn(translation_actions, target_translation_actions, logp_actions, target_click_actions)
 
         # perform backpropation, gradient descent
         self.optimizer.zero_grad()
