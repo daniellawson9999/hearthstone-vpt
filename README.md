@@ -12,3 +12,5 @@ In progress, doing [Video PreTraining (VPT): Learning to Act by Watching Unlabel
 - Collect data, possibly try finetuning from pre-trained Minecraft policies, 
 - Redo state/action parameterization to match VPT, (ie discretize mouse movement, etc)
 - Better documentation 
+
+Please reach out if interested. 
