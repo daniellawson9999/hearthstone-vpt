@@ -5,3 +5,10 @@ In progress, doing [Video PreTraining (VPT): Learning to Act by Watching Unlabel
 ## Currently:
 
 - Scripts for collecting supervised training data from windows hearthstone client in *collect_data*
+- using trained IDMs for lableing unlabled YouTube data, training policies, running trained policies in hearthstone cilent, 
+
+## TODO:
+
+- Collect data, possibly try finetuning from pre-trained Minecraft policies, 
+- Redo state/action parameterization to match VPT, (ie discretize mouse movement, etc)
+- Better documentation 
