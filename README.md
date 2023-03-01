@@ -4,4 +4,4 @@ In progress, doing [Video PreTraining (VPT): Learning to Act by Watching Unlabel
 
 ## Currently:
 
-Scripts for collecting supervised training data from windows hearthstone client in *collect_data*
+- Scripts for collecting supervised training data from windows hearthstone client in *collect_data*
